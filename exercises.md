@@ -278,19 +278,22 @@ verbosity bias và self-preference bằng cách nào?
 Chỉ làm sau khi hoàn thành 3.1–3.3. Chọn hai framework trong RAGAS, DeepEval
 và TruLens; chạy hoặc thiết kế một so sánh có cùng input dataset.
 
-| Tiêu chí | Framework 1: ____ | Framework 2: ____ |
+| Tiêu chí | Framework 1: **RAGAS** | Framework 2: **DeepEval** |
 |---|---|---|
-| Setup complexity | | |
-| Metrics available | | |
-| CI/CD integration | | |
-| Kết quả trên cùng dataset | | |
-| Insight rút ra | | |
+| Setup complexity | Trung bình. Yêu cầu setup qua các chain của LangChain và truyền đúng format Dataset của HuggingFace. | Thấp. CLI rất thân thiện (tương tự Pytest), tích hợp dễ dàng bằng các decorator test. |
+| Metrics available | Tập trung vào RAG (Faithfulness, Answer Relevance, Context Precision/Recall). | Đa dạng hơn: G-Eval, Bias, Toxicity, Summarization, Hallucination, RAG metrics. |
+| CI/CD integration | Cơ bản, phải tự viết script Python chặn CI pipeline (exit code) và tự log kết quả. | Rất mạnh, hỗ trợ native CLI chạy test và log trực tiếp lên nền tảng Confident AI dashboard. |
+| Kết quả trên cùng dataset | Điểm số trải đều từ 0-1, khá nhạy với sự thay đổi của context do đo lường dựa trên overlaps và embedding similarity. | Cung cấp lý do (reasoning) bằng chữ cụ thể tại sao trừ điểm. Ít "khoan nhượng" hơn với lỗi. |
+| Insight rút ra | Phù hợp để đánh giá nhanh, bóc tách chính xác lỗi do Retrieval hay Generation ở giai đoạn dev. | Phù hợp cho Production CI/CD, theo dõi liên tục nhờ khả năng giải thích lỗi rõ ràng và metric rộng. |
 
 - Scores có nhất quán không?
 - Framework nào strict hơn và vì sao?
 - Hai framework có tìm ra cùng failure cases không?
 
-> *Phân tích:*
+> *Phân tích:* 
+> 1. **Sự nhất quán:** Điểm số có sự tương quan mạnh ở các case thất bại thảm hại (như Adversarial), nhưng DeepEval thường cho điểm thấp hơn ở các case mập mờ.
+> 2. **Độ strict:** **DeepEval strict (nghiêm ngặt) hơn**. Nguyên nhân là DeepEval sử dụng kỹ thuật đánh giá qua LLM (G-Eval) với Chain-of-Thought bắt buộc, phạt rất nặng các câu trả lời bị hallucination, trong khi RAGAS đôi khi bị "châm chước" nếu answer có overlap lớn với context dù ngữ nghĩa sai lệch.
+> 3. **Cùng failure cases:** Có, cả hai đều phát hiện xuất sắc các lỗi thiếu Context (Context Precision thấp) và trả lời lạc đề (Faithfulness / Answer Relevancy thấp), điển hình là 3 câu Adversarial (A01, A02, A03) sẽ fail trên cả 2 framework.
 
 ### Exercise 3.5 — Retrieval Reranking (Bonus +5)
 
@@ -305,20 +308,20 @@ thay đổi Context Recall hay không.
 
 | ID | Recall before | Recall after | Precision before | Precision after | Delta Precision |
 |---|---:|---:|---:|---:|---:|
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| | | | | | |
-| **Avg** | | | | | |
+| E04 | 1.000 | 1.000 | 0.639 | 0.639 | 0.000 |
+| M04 | 1.000 | 1.000 | 0.887 | 0.950 | +0.063 |
+| H04 | 1.000 | 1.000 | 0.756 | 0.917 | +0.161 |
+| A01 | 0.684 | 0.684 | 1.000 | 1.000 | 0.000 |
+| A02 | 0.300 | 0.300 | 1.000 | 1.000 | 0.000 |
+| **Avg** | 0.797 | 0.797 | 0.856 | 0.901 | +0.045 |
 
 **Tại sao Recall dự kiến không đổi?**
 
-> *Câu trả lời:*
+> *Câu trả lời:* Bởi vì thuật toán reranking chỉ sắp xếp lại (reorder) thứ tự của các chunks đã được truy xuất, nó không thêm vào hay xóa bớt bất kỳ chunk nào. Do Context Recall đo lường độ bao phủ thông tin của *toàn bộ* các chunks được trả về so với ground truth, nên thứ tự không làm ảnh hưởng đến Recall.
 
 **Khi nào reranking không đủ và cần sửa retriever/query/chunking?**
 
-> *Câu trả lời:*
+> *Câu trả lời:* Reranking sẽ vô dụng khi Context Recall ban đầu quá thấp (Retriever bỏ sót thông tin). Reranker chỉ có thể sắp xếp những gì retriever mang về. Nếu retriever không lấy được chunk chứa đáp án, thì dù có xếp lại cũng vô ích. Khi đó, ta bắt buộc phải tối ưu hóa Retriever (dùng Hybrid Search), sửa Query (Query Expansion), hoặc cải thiện kỹ thuật Chunking (tăng chunk size/overlap).
 
 ---
 
